@@ -1,263 +1,121 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Web AR Аквариум</title>
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; }
-
-    #loading-screen {
-      position: fixed; inset: 0; z-index: 9999;
-      background: linear-gradient(135deg, #0a0e27, #1a1a4e, #0d2137);
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      transition: opacity 0.8s ease;
-    }
-    #loading-screen.hidden { opacity: 0; pointer-events: none; }
-
-    .logo-fish { font-size: 80px; animation: fishBob 2s ease-in-out infinite; }
-    @keyframes fishBob { 0%,100%{transform:translateY(0) rotate(-5deg)} 50%{transform:translateY(-15px) rotate(5deg)} }
-
-    .logo-title {
-      font-size: 2.2em; font-weight: 700; letter-spacing: 2px; margin-top: 10px;
-      background: linear-gradient(90deg, #00d4ff, #00ff88, #00d4ff);
-      background-size: 200%;
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      animation: shimmer 3s linear infinite;
-    }
-    @keyframes shimmer { 0%{background-position:0%} 100%{background-position:200%} }
-    .logo-sub { color: #8ab4d4; font-size: 0.9em; margin-top: 8px; letter-spacing: 3px; }
-
-    .progress-wrap { width: 280px; background: rgba(255,255,255,0.1); border-radius: 50px; overflow: hidden; height: 6px; margin: 24px 0 10px; }
-    .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #00d4ff, #00ff88); border-radius: 50px; transition: width 0.4s ease; box-shadow: 0 0 12px #00d4ff; }
-    .progress-text { color: #8ab4d4; font-size: 0.85em; }
-
-    #hud {
-      position: fixed; top: 0; left: 0; right: 0; padding: 16px 24px;
-      display: flex; align-items: center; justify-content: space-between;
-      background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
-      z-index: 100; pointer-events: none;
-    }
-    .hud-title { color: white; font-size: 1.1em; font-weight: 600; letter-spacing: 1px; }
-    .hud-title span { color: #00d4ff; }
-    .hud-badge { background: rgba(0,212,255,0.2); border: 1px solid rgba(0,212,255,0.5); color: #00d4ff; font-size: 0.75em; padding: 4px 12px; border-radius: 20px; letter-spacing: 1px; }
-
-    #info-panel {
-      position: fixed; bottom: 0; left: 0; right: 0; padding: 20px 24px 30px;
-      background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);
-      z-index: 100; pointer-events: none; text-align: center;
-    }
-    .scan-hint { color: rgba(255,255,255,0.9); font-size: 1em; display: flex; align-items: center; justify-content: center; gap: 10px; }
-    .scan-icon { width: 32px; height: 32px; border: 2px solid #00d4ff; border-radius: 6px; position: relative; animation: scanPulse 2s ease-in-out infinite; }
-    @keyframes scanPulse { 0%,100%{box-shadow:0 0 0 0 rgba(0,212,255,0.4)} 50%{box-shadow:0 0 0 8px rgba(0,212,255,0)} }
-    .scan-icon::before { content:''; position:absolute; left:4px; right:4px; height:1px; background:#00d4ff; top:50%; animation:scanLine 2s linear infinite; }
-    @keyframes scanLine { 0%{top:20%} 100%{top:80%} }
-
-    #status-dot { position:fixed; top:22px; right:80px; width:8px; height:8px; border-radius:50%; background:#ff4444; z-index:101; box-shadow:0 0 6px #ff4444; animation:statusPulse 1.5s infinite; }
-    #status-dot.active { background:#00ff88; box-shadow:0 0 6px #00ff88; }
-    @keyframes statusPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AR Aquarium</title>
+<script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+<style>
+body{
+    margin:0;
+    overflow:hidden;
+    font-family:Arial,sans-serif;
+}
+#info{
+    position:fixed;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    background:rgba(0,0,0,.7);
+    color:white;
+    padding:10px 20px;
+    border-radius:20px;
+    z-index:999;
+}
+#status{
+    position:fixed;
+    top:20px;
+    right:20px;
+    width:16px;
+    height:16px;
+    border-radius:50%;
+    background:red;
+    z-index:999;
+}
+#status.active{
+    background:lime;
+}
+</style>
 </head>
 <body>
-
-<div id="loading-screen">
-  <div class="logo-fish">🐠</div>
-  <div class="logo-title">AR AQUARIUM</div>
-  <div class="logo-sub">WEB AR · ДИПЛОМ 2025</div>
-  <div class="progress-wrap"><div class="progress-bar" id="prog"></div></div>
-  <div class="progress-text" id="prog-text">Инициализация...</div>
+<div id="status"></div>
+<div id="info">
+Наведите камеру на маркер HIRO
 </div>
-
-<div id="hud">
-  <div class="hud-title">🐟 <span>AR</span> Aquarium</div>
-  <div class="hud-badge">HIRO MARKER</div>
-</div>
-<div id="status-dot"></div>
-
-<div id="info-panel">
-  <div class="scan-hint">
-    <div class="scan-icon"></div>
-    Наведите камеру на маркер HIRO
-  </div>
-</div>
-
 <a-scene
-  embedded
-  arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-  renderer="logarithmicDepthBuffer: true;"
-  vr-mode-ui="enabled: false"
-  style="position:fixed;inset:0;z-index:50;">
-
-  <a-marker preset="hiro" id="hiroMarker">
-
-    <!-- Aquarium floor -->
-    <a-plane position="0 0.01 0" rotation="-90 0 0" width="3.5" height="3.5"
-      material="color: #c8a96e; roughness:1; metalness:0"></a-plane>
-
-    <!-- Glow overlay on floor -->
-    <a-plane position="0 0.02 0" rotation="-90 0 0" width="3.4" height="3.4"
-      material="color:#0055aa; opacity:0.25; transparent:true"
-      animation="property:material.opacity; from:0.15; to:0.35; dur:2000; loop:true; dir:alternate; easing:easeInOutSine">
-    </a-plane>
-
-    <!-- Glass walls -->
-    <a-box position="0 0.75 -1.75" width="3.5" height="1.5" depth="0.04"
-      material="color:#aaddff; opacity:0.07; transparent:true; side:double"></a-box>
-    <a-box position="0 0.75 1.75" width="3.5" height="1.5" depth="0.04"
-      material="color:#aaddff; opacity:0.07; transparent:true; side:double"></a-box>
-    <a-box position="-1.75 0.75 0" width="0.04" height="1.5" depth="3.5"
-      material="color:#aaddff; opacity:0.07; transparent:true; side:double"></a-box>
-    <a-box position="1.75 0.75 0" width="0.04" height="1.5" depth="3.5"
-      material="color:#aaddff; opacity:0.07; transparent:true; side:double"></a-box>
-
-    <!-- Coral 1 (red) -->
-    <a-cylinder position="-1.1 0.15 -0.8" radius="0.06" height="0.3" material="color:#ff6b6b" segments-radial="6"></a-cylinder>
-    <a-sphere position="-1.1 0.33 -0.8" radius="0.14" material="color:#ff4757"></a-sphere>
-    <a-sphere position="-0.96 0.38 -0.74" radius="0.09" material="color:#ff6b81"></a-sphere>
-    <a-sphere position="-1.23 0.37 -0.86" radius="0.08" material="color:#ff4757"></a-sphere>
-
-    <!-- Coral 2 (orange) -->
-    <a-cylinder position="1.2 0.18 0.9" radius="0.05" height="0.36" material="color:#ffa502" segments-radial="6"></a-cylinder>
-    <a-sphere position="1.2 0.38 0.9" radius="0.12" material="color:#ff6348"></a-sphere>
-    <a-sphere position="1.1 0.44 0.84" radius="0.08" material="color:#ff7f50"></a-sphere>
-    <a-sphere position="1.3 0.42 0.96" radius="0.07" material="color:#ff4500"></a-sphere>
-
-    <!-- Seaweed -->
-    <a-cylinder position="-0.5 0.25 1.1" radius="0.03" height="0.5" material="color:#2ed573" rotation="0 0 12"
-      animation="property:rotation.z; from:12; to:-12; dur:2200; loop:true; dir:alternate; easing:easeInOutSine"></a-cylinder>
-    <a-cylinder position="-0.38 0.3 1.1" radius="0.03" height="0.6" material="color:#1e90ff" rotation="0 0 -8"
-      animation="property:rotation.z; from:-8; to:10; dur:1800; loop:true; dir:alternate; easing:easeInOutSine"></a-cylinder>
-    <a-cylinder position="-0.62 0.27 1.06" radius="0.025" height="0.54" material="color:#7bed9f" rotation="0 0 5"
-      animation="property:rotation.z; from:5; to:-15; dur:2500; loop:true; dir:alternate; easing:easeInOutSine"></a-cylinder>
-    <a-cylinder position="0.8 0.22 -1.2" radius="0.03" height="0.44" material="color:#2ed573" rotation="0 0 -10"
-      animation="property:rotation.z; from:-10; to:10; dur:2000; loop:true; dir:alternate; easing:easeInOutSine"></a-cylinder>
-    <a-cylinder position="0.9 0.26 -1.1" radius="0.025" height="0.52" material="color:#00b894" rotation="0 0 7"
-      animation="property:rotation.z; from:7; to:-13; dur:1700; loop:true; dir:alternate; easing:easeInOutSine"></a-cylinder>
-
-    <!-- Rocks -->
-    <a-sphere position="1.0 0.07 -0.5" scale="0.22 0.13 0.18" material="color:#778ca3"></a-sphere>
-    <a-sphere position="-1.3 0.06 0.6" scale="0.18 0.11 0.15" material="color:#95a5a6"></a-sphere>
-    <a-sphere position="0.2 0.06 1.3" scale="0.15 0.09 0.13" material="color:#7f8c8d"></a-sphere>
-
-    <!-- Bubbles -->
-    <a-sphere position="-0.8 0.2 0.5" radius="0.04" material="color:white; opacity:0.4; transparent:true"
-      animation="property:position; from:-0.8 0.2 0.5; to:-0.8 1.4 0.5; dur:3000; loop:true; easing:linear"
-      animation__o="property:material.opacity; from:0.4; to:0; dur:3000; loop:true"></a-sphere>
-    <a-sphere position="0.5 0.2 -0.7" radius="0.03" material="color:white; opacity:0.4; transparent:true"
-      animation="property:position; from:0.5 0.2 -0.7; to:0.5 1.4 -0.7; dur:2500; loop:true; easing:linear; delay:900"
-      animation__o="property:material.opacity; from:0.4; to:0; dur:2500; loop:true; delay:900"></a-sphere>
-    <a-sphere position="0.1 0.15 0.3" radius="0.035" material="color:white; opacity:0.35; transparent:true"
-      animation="property:position; from:0.1 0.15 0.3; to:0.1 1.35 0.3; dur:3500; loop:true; easing:linear; delay:1600"
-      animation__o="property:material.opacity; from:0.35; to:0; dur:3500; loop:true; delay:1600"></a-sphere>
-
-    <!-- FISH 1: Clownfish orange -->
+embedded
+vr-mode-ui="enabled:false"
+renderer="antialias:true"
+arjs="sourceType:webcam; debugUIEnabled:true;">
+<a-marker preset="hiro" id="hiroMarker">
+    <!-- дно -->
+    <a-circle
+        rotation="-90 0 0"
+        radius="1"
+        color="#d9c28f">
+    </a-circle>
+    <!-- рыбка 1 -->
     <a-entity
-      animation__x="property:position.x; from:-1.2; to:1.2; dur:4000; loop:true; dir:alternate; easing:easeInOutSine"
-      animation__y="property:position.y; from:0.4; to:0.8; dur:1800; loop:true; dir:alternate; easing:easeInOutSine"
-      animation__z="property:position.z; from:-0.3; to:0.3; dur:3000; loop:true; dir:alternate; easing:easeInOutSine">
-      <a-sphere scale="0.22 0.13 0.12" material="color:#ff6b00"></a-sphere>
-      <a-cylinder position="0 0 0" radius="0.07" height="0.14" rotation="0 0 90" segments-radial="12" material="color:white; opacity:0.9; transparent:true"></a-cylinder>
-      <a-sphere position="0.1 0.05 0.07" radius="0.03" material="color:#111"></a-sphere>
-      <a-sphere position="0.12 0.06 0.07" radius="0.012" material="color:white"></a-sphere>
-      <a-cone position="-0.22 0 0" radius-bottom="0.1" radius-top="0.01" height="0.12" rotation="0 0 -90" material="color:#ff4500"
-        animation="property:rotation.z; from:-85; to:-95; dur:300; loop:true; dir:alternate"></a-cone>
-      <a-cone position="0.04 0.1 0" radius-bottom="0.07" radius-top="0.01" height="0.1" material="color:#ff6b00; opacity:0.8; transparent:true"></a-cone>
+        position="-0.5 0.4 0"
+        animation="property: position;
+                   from:-0.5 0.4 0;
+                   to:0.5 0.6 0;
+                   dir:alternate;
+                   dur:3000;
+                   loop:true">
+        <a-sphere
+            scale="0.3 0.18 0.18"
+            color="orange">
+        </a-sphere>
+        <a-cone
+            position="-0.18 0 0"
+            rotation="0 0 -90"
+            radius-bottom="0.1"
+            radius-top="0"
+            height="0.15"
+            color="orange">
+        </a-cone>
     </a-entity>
-
-    <!-- FISH 2: Blue tang -->
+    <!-- рыбка 2 -->
     <a-entity
-      animation__x="property:position.x; from:1.1; to:-1.1; dur:5500; loop:true; dir:alternate; easing:easeInOutSine"
-      animation__z="property:position.z; from:-0.9; to:0.9; dur:4000; loop:true; dir:alternate; easing:easeInOutSine"
-      animation__y="property:position.y; from:0.55; to:0.85; dur:2200; loop:true; dir:alternate; easing:easeInOutSine">
-      <a-sphere scale="0.2 0.11 0.1" material="color:#1e90ff"></a-sphere>
-      <a-sphere position="0.07 0.03 0.06" radius="0.025" material="color:#111"></a-sphere>
-      <a-sphere position="0.085 0.04 0.06" radius="0.01" material="color:white"></a-sphere>
-      <a-cone position="-0.21 0 0" radius-bottom="0.09" radius-top="0.01" height="0.11" rotation="0 0 -90" material="color:#1a78c2"
-        animation="property:rotation.z; from:-84; to:-96; dur:280; loop:true; dir:alternate"></a-cone>
+        position="0.4 0.7 0"
+        animation="property: position;
+                   from:0.4 0.7 0;
+                   to:-0.4 0.5 0;
+                   dir:alternate;
+                   dur:4000;
+                   loop:true">
+        <a-sphere
+            scale="0.25 0.15 0.15"
+            color="
+#1e90ff">
+        </a-sphere>
+        <a-cone
+            position="-0.15 0 0"
+            rotation="0 0 -90"
+            radius-bottom="0.08"
+            radius-top="0"
+            height="0.12"
+            color="
+#1e90ff">
+        </a-cone>
     </a-entity>
-
-    <!-- FISH 3: Yellow -->
-    <a-entity
-      animation__z="property:position.z; from:-1.1; to:1.1; dur:6000; loop:true; dir:alternate; easing:easeInOutSine"
-      animation__x="property:position.x; from:-0.6; to:0.6; dur:3200; loop:true; dir:alternate; easing:easeInOutSine"
-      animation__y="property:position.y; from:0.35; to:0.65; dur:2600; loop:true; dir:alternate; easing:easeInOutSine">
-      <a-sphere scale="0.18 0.14 0.1" material="color:#ffd700"></a-sphere>
-      <a-sphere position="0.08 0.04 0.06" radius="0.025" material="color:#111"></a-sphere>
-      <a-sphere position="0.09 0.05 0.06" radius="0.01" material="color:white"></a-sphere>
-      <a-cone position="-0.18 0 0" radius-bottom="0.1" radius-top="0.01" height="0.12" rotation="0 0 -90" material="color:#ffa500"
-        animation="property:rotation.z; from:-83; to:-97; dur:350; loop:true; dir:alternate"></a-cone>
-      <a-cone position="0.04 0.12 0" radius-bottom="0.06" radius-top="0.01" height="0.09" material="color:#ffb700; opacity:0.85; transparent:true"></a-cone>
-    </a-entity>
-
-    <!-- FISH 4: Pink -->
-    <a-entity
-      animation__x="property:position.x; from:0.9; to:-0.9; dur:3800; loop:true; dir:alternate; easing:easeInOutSine"
-      animation__z="property:position.z; from:0.8; to:-0.8; dur:5000; loop:true; dir:alternate; easing:easeInOutSine"
-      animation__y="property:position.y; from:0.6; to:0.9; dur:1900; loop:true; dir:alternate; easing:easeInOutSine">
-      <a-sphere scale="0.16 0.1 0.09" material="color:#ff69b4"></a-sphere>
-      <a-sphere position="0.07 0.03 0.06" radius="0.022" material="color:#111"></a-sphere>
-      <a-sphere position="0.085 0.04 0.06" radius="0.009" material="color:white"></a-sphere>
-      <a-cone position="-0.17 0 0" radius-bottom="0.08" radius-top="0.01" height="0.1" rotation="0 0 -90" material="color:#ff1493"
-        animation="property:rotation.z; from:-84; to:-96; dur:320; loop:true; dir:alternate"></a-cone>
-    </a-entity>
-
-    <!-- FISH 5: Green -->
-    <a-entity
-      animation__z="property:position.z; from:1.2; to:-1.2; dur:7000; loop:true; dir:alternate; easing:easeInOutSine"
-      animation__x="property:position.x; from:-0.9; to:0.4; dur:3500; loop:true; dir:alternate; easing:easeInOutSine"
-      animation__y="property:position.y; from:0.45; to:0.75; dur:3000; loop:true; dir:alternate; easing:easeInOutSine">
-      <a-sphere scale="0.19 0.12 0.1" material="color:#2ed573"></a-sphere>
-      <a-sphere position="0.09 0.04 0.07" radius="0.024" material="color:#111"></a-sphere>
-      <a-sphere position="0.1 0.05 0.07" radius="0.01" material="color:white"></a-sphere>
-      <a-cone position="-0.19 0 0" radius-bottom="0.085" radius-top="0.01" height="0.11" rotation="0 0 -90" material="color:#1e9944"
-        animation="property:rotation.z; from:-86; to:-94; dur:340; loop:true; dir:alternate"></a-cone>
-      <a-cone position="0.04 0.11 0" radius-bottom="0.055" radius-top="0.01" height="0.08" material="color:#00e676; opacity:0.8; transparent:true"></a-cone>
-    </a-entity>
-
-  </a-marker>
-
-  <a-entity camera></a-entity>
+</a-marker>
+<a-entity camera></a-entity>
 </a-scene>
-
 <script>
-  // Loading progress
-  const prog = document.getElementById('prog');
-  const progText = document.getElementById('prog-text');
-  const steps = [
-    [20, 'Загрузка AR.js...'],
-    [50, 'Загрузка A-Frame...'],
-    [75, 'Подготовка 3D сцены...'],
-    [100, 'Готово! 🐠'],
-  ];
-  let si = 0;
-  function nextStep() {
-    if (si >= steps.length) return;
-    prog.style.width = steps[si][0] + '%';
-    progText.textContent = steps[si][1];
-    si++;
-    if (si < steps.length) setTimeout(nextStep, 700);
-    else setTimeout(hideLoading, 600);
-  }
-  setTimeout(nextStep, 400);
-
-  function hideLoading() {
-    const ls = document.getElementById('loading-screen');
-    ls.classList.add('hidden');
-    setTimeout(() => ls.style.display = 'none', 900);
-  }
-
-  // Marker detection status
-  window.addEventListener('load', () => {
-    const marker = document.getElementById('hiroMarker');
-    const dot = document.getElementById('status-dot');
-    if (marker) {
-      marker.addEventListener('markerFound', () => dot.classList.add('active'));
-      marker.addEventListener('markerLost', () => dot.classList.remove('active'));
-    }
-  });
+const marker = document.getElementById('hiroMarker');
+const status = document.getElementById('status');
+const info = document.getElementById('info');
+marker.addEventListener('markerFound', () => {
+    status.classList.add('active');
+    info.innerHTML = '🐠 Маркер найден!';
+});
+marker.addEventListener('markerLost', () => {
+    status.classList.remove('active');
+    info.innerHTML = 'Наведите камеру на маркер HIRO';
+});
 </script>
 </body>
 </html>
